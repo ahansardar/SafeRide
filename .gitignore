@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+build/
+dist/
+release/
+SafeRide.spec
+tools/arduino-cli.exe
+tools/arduino-data/
+tools/arduino-sketchbook/
+*.log

@@ -1,0 +1,4 @@
+pyserial==3.5
+pyinstaller==6.16.0
+Pillow==12.1.1
+

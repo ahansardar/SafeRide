@@ -1,0 +1,46 @@
+name: Build public SafeRide release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version already set in version.py, for example 3.3.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check release version
+        shell: pwsh
+        run: .\tools\assert-release-version.ps1 -Version "${{ inputs.version }}"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build and verify installer
+        shell: pwsh
+        run: .\tools\build-installer.ps1
+
+      - name: Publish public GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "v${{ inputs.version }}"
+          .\release\SafeRide-Setup-x64.exe
+          .\release\SafeRide-Setup-x64.sha256.txt
+          --target "${{ github.sha }}"
+          --title "SafeRide ${{ inputs.version }}"
+          --generate-notes

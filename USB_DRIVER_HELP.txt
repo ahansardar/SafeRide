@@ -1,0 +1,22 @@
+SafeRide USB connection help
+============================
+
+SafeRide itself is fully offline and includes its Python runtime, Arduino
+compiler, upload tools, and AVR board definitions. No Arduino IDE is needed.
+
+If a connected Arduino does not appear in SafeRide:
+
+1. Use a USB data cable. Some charging cables do not carry data.
+2. Reconnect the board, then press RESCAN in SafeRide.
+3. Open Windows Device Manager and check "Ports (COM & LPT)" and
+   "Other devices".
+4. For an official Arduino Uno or Mega, allow Windows Update to install the
+   signed device driver.
+5. Many clone Uno and Nano boards use a CH340/CH341 USB chip. Install the
+   signed CH340/CH341 driver supplied by the board seller or chip vendor, then
+   reconnect the board and press RESCAN.
+
+Do not download USB drivers from random driver-download websites.
+
+SafeRide deliberately ignores Bluetooth virtual COM ports. The exhibition
+link is a real wired serial data feed even when an HC-05 module is displayed.

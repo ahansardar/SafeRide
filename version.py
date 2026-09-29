@@ -1,0 +1,5 @@
+APP_VERSION = "3.2.0"
+GITHUB_OWNER = "ahansardar"
+GITHUB_REPOSITORY = "SafeRide"
+INSTALLER_ASSET = "SafeRide-Setup-x64.exe"
+CHECKSUM_ASSET = "SafeRide-Setup-x64.sha256.txt"
