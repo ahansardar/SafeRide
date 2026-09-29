@@ -52,7 +52,8 @@ Name: "{group}\USB connection help"; Filename: "{app}\USB_DRIVER_HELP.txt"
 Name: "{autodesktop}\SafeRide"; Filename: "{app}\SafeRide.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\SafeRide.exe"; Description: "Launch SafeRide"; Flags: nowait postinstall
+Filename: "{app}\SafeRide.exe"; Description: "Launch SafeRide"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\SafeRide.exe"; Flags: nowait skipifnotsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
