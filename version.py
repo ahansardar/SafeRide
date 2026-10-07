@@ -1,4 +1,4 @@
-APP_VERSION = "3.3.0"
+APP_VERSION = "3.3.1"
 GITHUB_OWNER = "ahansardar"
 GITHUB_REPOSITORY = "SafeRide"
 INSTALLER_ASSET = "SafeRide-Setup-x64.exe"

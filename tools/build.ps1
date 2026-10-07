@@ -57,6 +57,7 @@ try {
             --hidden-import serial.tools.list_ports_windows `
             --add-data "firmware;firmware" `
             --add-data "drivers;drivers" `
+            --add-data "assets;assets" `
             --add-binary "tools\arduino-cli.exe;tools" `
             --add-data "tools\arduino-data;tools\arduino-data" `
             --add-data "THIRD_PARTY_NOTICES.md;." `
@@ -71,6 +72,7 @@ try {
             --hidden-import serial.tools.list_ports_windows `
             --add-data "firmware;firmware" `
             --add-data "drivers;drivers" `
+            --add-data "assets;assets" `
             --add-binary "tools\arduino-cli.exe;tools" `
             --add-data "tools\arduino-data;tools\arduino-data" `
             --add-data "THIRD_PARTY_NOTICES.md;." `

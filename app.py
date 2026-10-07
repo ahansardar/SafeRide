@@ -27,7 +27,7 @@ from driver_support import (
 )
 from firmware_builder import render_firmware
 from session_log import SessionLog
-from uploader import arduino_cli_path, upload_sketch
+from uploader import arduino_cli_path, resource_path, upload_sketch
 from updater import GitHubUpdater, ReleaseInfo, UpdateError, is_newer_version
 from version import APP_VERSION
 
@@ -622,10 +622,8 @@ class SafeRideApp(tk.Tk):
         except tk.TclError:
             pass
         self.configure(bg=COLORS["bg"])
-        self._icon = tk.PhotoImage(width=32, height=32)
-        self._icon.put(COLORS["cyan"], to=(0, 0, 32, 32))
-        self._icon.put(COLORS["ink"], to=(7, 7, 25, 25))
-        self._icon.put(COLORS["cyan"], to=(12, 11, 20, 21))
+        self._brand_images: dict[int, tk.PhotoImage] = {}
+        self._icon = self._brand_image(32)
         self.iconphoto(True, self._icon)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
@@ -660,6 +658,20 @@ class SafeRideApp(tk.Tk):
                         lightcolor=COLORS["line"], darkcolor=COLORS["line"], padding=9)
         style.map("SafeRide.TCombobox", fieldbackground=[("readonly", COLORS["panel2"])],
                   foreground=[("readonly", COLORS["text"])])
+
+    def _brand_image(self, size: int) -> tk.PhotoImage:
+        if size not in self._brand_images:
+            self._brand_images[size] = tk.PhotoImage(file=resource_path("assets", f"saferide-mark-{size}.png"))
+        return self._brand_images[size]
+
+    def _brand_mark(self, parent: tk.Widget, size: int = 48, background: str | None = None) -> tk.Label:
+        return tk.Label(
+            parent,
+            image=self._brand_image(size),
+            bg=background or str(parent.cget("bg")),
+            bd=0,
+            highlightthickness=0,
+        )
 
     def clear(self) -> None:
         for child in self.winfo_children():
@@ -1071,9 +1083,7 @@ class SafeRideApp(tk.Tk):
     def _brand_bar(self, parent: tk.Widget, setup: bool = False) -> None:
         bar = tk.Frame(parent, bg=COLORS["bg"])
         bar.pack(fill="x")
-        mark = tk.Label(bar, text="SR", width=3, bg=COLORS["cyan"], fg=COLORS["ink"])
-        set_font(mark, 15, "bold")
-        mark.pack(side="left", ipady=5)
+        self._brand_mark(bar).pack(side="left")
         brand = tk.Frame(bar, bg=COLORS["bg"])
         brand.pack(side="left", padx=12)
         name = tk.Label(brand, text="SAFERIDE", bg=COLORS["bg"], fg=COLORS["text"], anchor="w")
@@ -1231,9 +1241,7 @@ class SafeRideApp(tk.Tk):
 
         top = tk.Frame(root, bg=COLORS["panel"], highlightbackground=COLORS["line"], highlightthickness=1, padx=12, pady=8)
         top.pack(fill="x", pady=(0, 8))
-        mark = tk.Label(top, text="SR", width=3, bg=COLORS["cyan"], fg=COLORS["ink"])
-        set_font(mark, 12, "bold")
-        mark.pack(side="left", ipady=4)
+        self._brand_mark(top, background=COLORS["panel"]).pack(side="left")
         title_box = tk.Frame(top, bg=COLORS["panel"])
         title_box.pack(side="left", padx=12)
         title = tk.Label(title_box, text="SAFERIDE / LIVE RIDE CONTROL", bg=COLORS["panel"], fg=COLORS["text"])
@@ -1476,7 +1484,6 @@ class SafeRideApp(tk.Tk):
 def _portable_smoke_test(output_path: Path) -> int:
     updater = GitHubUpdater()
     cli = arduino_cli_path()
-    from uploader import resource_path
     from driver_support import verify_ch341_installer
 
     assets = driver_assets()
@@ -1497,6 +1504,7 @@ def _portable_smoke_test(output_path: Path) -> int:
         "ch341_driver": ch341_valid,
         "helmet_firmware": resource_path("firmware", "helmet", "helmet.ino").is_file(),
         "vehicle_firmware": resource_path("firmware", "vehicle", "vehicle.ino").is_file(),
+        "brand_icon": resource_path("assets", "saferide-mark-32.png").is_file(),
     }
     result["ok"] = all(
         result[key]
@@ -1507,6 +1515,7 @@ def _portable_smoke_test(output_path: Path) -> int:
             "ch341_driver",
             "helmet_firmware",
             "vehicle_firmware",
+            "brand_icon",
         )
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
