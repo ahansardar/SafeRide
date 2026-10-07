@@ -5,7 +5,7 @@ __pycache__/
 build/
 dist/
 release/
-SafeRide.spec
+*.spec
 tools/arduino-cli.exe
 tools/arduino-data/
 tools/arduino-sketchbook/

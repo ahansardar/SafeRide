@@ -29,9 +29,13 @@ jobs:
         shell: pwsh
         run: choco install innosetup --yes --no-progress
 
-      - name: Build and verify installer
+      - name: Build and verify Windows packages
         shell: pwsh
-        run: .\tools\build-installer.ps1
+        run: |
+          .\tools\build.ps1 -Target All
+          .\tools\build-installer.ps1 -SkipAppBuild
+          .\tools\build-portable.ps1 -SkipAppBuild
+          .\tools\verify-portable.ps1
 
       - name: Publish public GitHub release
         shell: pwsh
@@ -41,6 +45,8 @@ jobs:
           gh release create "v${{ inputs.version }}"
           .\release\SafeRide-Setup-x64.exe
           .\release\SafeRide-Setup-x64.sha256.txt
+          .\release\SafeRide-Portable-x64.exe
+          .\release\SafeRide-Portable-x64.sha256.txt
           --target "${{ github.sha }}"
           --title "SafeRide ${{ inputs.version }}"
           --generate-notes

@@ -20,8 +20,13 @@ def main() -> int:
         ROOT / "uploader.py",
         ROOT / "device_config.py",
         ROOT / "firmware_builder.py",
+        ROOT / "driver_support.py",
+        ROOT / "session_log.py",
         ROOT / "updater.py",
         ROOT / "version.py",
+        ROOT / "tools" / "build-portable.ps1",
+        ROOT / "tools" / "verify-portable.ps1",
+        ROOT / "drivers" / "CH341SER.EXE",
         ROOT / "firmware" / "helmet" / "helmet.ino",
         ROOT / "firmware" / "vehicle" / "vehicle.ino",
     ]
@@ -33,7 +38,8 @@ def main() -> int:
 
     for source in (
         ROOT / "app.py", ROOT / "core.py", ROOT / "uploader.py", ROOT / "device_config.py",
-        ROOT / "firmware_builder.py", ROOT / "updater.py", ROOT / "version.py",
+        ROOT / "firmware_builder.py", ROOT / "driver_support.py", ROOT / "session_log.py",
+        ROOT / "updater.py", ROOT / "version.py",
     ):
         ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
         print(f"PASS Python syntax: {source.name}")

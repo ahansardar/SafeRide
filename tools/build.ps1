@@ -1,5 +1,7 @@
 param(
-    [string]$ArduinoCliVersion = "1.5.1"
+    [string]$ArduinoCliVersion = "1.5.1",
+    [ValidateSet("All", "Installed", "Portable")]
+    [string]$Target = "All"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,25 +49,50 @@ try {
     & $cliPath compile --fqbn arduino:avr:uno (Join-Path $projectRoot "firmware\helmet")
     & $cliPath compile --fqbn arduino:avr:uno (Join-Path $projectRoot "firmware\vehicle")
 
-    Write-Host "[6/6] Building the Windows application"
-    python -m PyInstaller --noconfirm --clean --windowed --onedir `
-        --name SafeRide `
-        --icon "assets\saferide.ico" `
-        --hidden-import serial.tools.list_ports_windows `
-        --add-data "firmware;firmware" `
-        --add-binary "tools\arduino-cli.exe;tools" `
-        --add-data "tools\arduino-data;tools\arduino-data" `
-        --add-data "THIRD_PARTY_NOTICES.md;." `
-        app.py
+    if ($Target -in @("All", "Installed")) {
+        Write-Host "[6/6] Building the installed Windows application"
+        python -m PyInstaller --noconfirm --clean --windowed --onedir `
+            --name SafeRide `
+            --icon "assets\saferide.ico" `
+            --hidden-import serial.tools.list_ports_windows `
+            --add-data "firmware;firmware" `
+            --add-data "drivers;drivers" `
+            --add-binary "tools\arduino-cli.exe;tools" `
+            --add-data "tools\arduino-data;tools\arduino-data" `
+            --add-data "THIRD_PARTY_NOTICES.md;." `
+            app.py
+    }
+
+    if ($Target -in @("All", "Portable")) {
+        Write-Host "[6/6] Building the zero-install portable EXE"
+        python -m PyInstaller --noconfirm --clean --windowed --onefile `
+            --name SafeRide-Portable-x64 `
+            --icon "assets\saferide.ico" `
+            --hidden-import serial.tools.list_ports_windows `
+            --add-data "firmware;firmware" `
+            --add-data "drivers;drivers" `
+            --add-binary "tools\arduino-cli.exe;tools" `
+            --add-data "tools\arduino-data;tools\arduino-data" `
+            --add-data "THIRD_PARTY_NOTICES.md;." `
+            app.py
+    }
 } finally {
     Pop-Location
 }
 
-$exePath = Join-Path $projectRoot "dist\SafeRide\SafeRide.exe"
-if (-not (Test-Path -LiteralPath $exePath)) {
-    throw "Build finished without creating $exePath"
+if ($Target -in @("All", "Installed")) {
+    $installedExe = Join-Path $projectRoot "dist\SafeRide\SafeRide.exe"
+    if (-not (Test-Path -LiteralPath $installedExe)) {
+        throw "Build finished without creating $installedExe"
+    }
+    Write-Host "Installed build complete: $installedExe" -ForegroundColor Green
 }
 
-Write-Host ""
-Write-Host "Build complete: $exePath" -ForegroundColor Green
+if ($Target -in @("All", "Portable")) {
+    $portableExe = Join-Path $projectRoot "dist\SafeRide-Portable-x64.exe"
+    if (-not (Test-Path -LiteralPath $portableExe)) {
+        throw "Build finished without creating $portableExe"
+    }
+    Write-Host "Portable build complete: $portableExe" -ForegroundColor Green
+}
 

@@ -7,7 +7,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $appExe = Join-Path $projectRoot "dist\SafeRide\SafeRide.exe"
 
 if (-not $SkipAppBuild) {
-    & (Join-Path $PSScriptRoot "build.ps1")
+    & (Join-Path $PSScriptRoot "build.ps1") -Target Installed
 }
 if (-not (Test-Path -LiteralPath $appExe)) {
     throw "SafeRide application build is missing: $appExe"

@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from collections import deque
 import ctypes
+import json
 from pathlib import Path
 import queue
 import subprocess
+import sys
 import threading
 import tempfile
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from typing import Callable
 
 import serial
@@ -17,7 +19,14 @@ from serial.tools import list_ports
 
 from core import Telemetry, engine_reason, parse_packet
 from device_config import BOARD_PROFILES, HelmetConfig, SafeRideConfig, VehicleConfig, load_config, save_config
+from driver_support import (
+    DriverSupportError,
+    driver_assets,
+    install_arduino_drivers,
+    install_ch341_driver,
+)
 from firmware_builder import render_firmware
+from session_log import SessionLog
 from uploader import arduino_cli_path, upload_sketch
 from updater import GitHubUpdater, ReleaseInfo, UpdateError, is_newer_version
 from version import APP_VERSION
@@ -67,6 +76,28 @@ def button(parent: tk.Widget, text: str, command: Callable, primary: bool = Fals
         width=width,
     )
     set_font(item, 10, "bold")
+    return item
+
+
+def compact_button(parent: tk.Widget, text: str, command: Callable, dark: bool = False) -> tk.Button:
+    background = "#1e293b" if dark else COLORS["panel2"]
+    foreground = "#e2e8f0" if dark else COLORS["text"]
+    item = tk.Button(
+        parent,
+        text=text,
+        command=command,
+        relief="flat",
+        bd=0,
+        bg=background,
+        fg=foreground,
+        activebackground="#334155" if dark else "#e2e8f0",
+        activeforeground=foreground,
+        cursor="hand2",
+        padx=10,
+        pady=3,
+        highlightthickness=0,
+    )
+    set_font(item, 8, "bold", "Consolas")
     return item
 
 
@@ -289,6 +320,7 @@ class ConfigurationWizard(tk.Toplevel):
         footer = tk.Frame(self, bg=COLORS["panel"], highlightbackground=COLORS["line"], highlightthickness=1, padx=14, pady=10)
         footer.pack(fill="x")
         button(footer, "CANCEL", self.destroy).pack(side="left")
+        button(footer, "EXPORT LOGS", lambda: self.master.export_logs(parent=self)).pack(side="left", padx=8)
         self.save_button = button(footer, "SAVE CONFIGURATION", self.save, primary=True)
         self.next_button = button(footer, "NEXT", self.next_step, primary=True)
         self.next_button.pack(side="right")
@@ -485,6 +517,100 @@ class ConfigurationWizard(tk.Toplevel):
         self.destroy()
 
 
+class DriverAssistant(tk.Toplevel):
+    def __init__(self, parent: "SafeRideApp") -> None:
+        super().__init__(parent)
+        self.title("SafeRide USB driver assistant")
+        self.geometry("720x430")
+        self.resizable(False, False)
+        self.configure(bg=COLORS["bg"])
+        self.transient(parent)
+        self.grab_set()
+
+        header = tk.Frame(self, bg=COLORS["navy"], padx=18, pady=14)
+        header.pack(fill="x")
+        title = tk.Label(header, text="USB DRIVER ASSISTANT", bg=COLORS["navy"], fg="#ffffff")
+        set_font(title, 13, "bold")
+        title.pack(anchor="w")
+        subtitle = tk.Label(
+            header,
+            text="Use only when a connected Arduino does not appear as a COM port",
+            bg=COLORS["navy"],
+            fg="#94a3b8",
+        )
+        set_font(subtitle, 8, family="Consolas")
+        subtitle.pack(anchor="w")
+
+        body = tk.Frame(self, bg=COLORS["bg"], padx=16, pady=16)
+        body.pack(fill="both", expand=True)
+        body.grid_columnconfigure(0, weight=1, uniform="driver")
+        body.grid_columnconfigure(1, weight=1, uniform="driver")
+        self._driver_card(
+            body,
+            0,
+            "ARDUINO / FTDI",
+            "Genuine Uno, Mega and FTDI-based boards",
+            "Installs the signed INF packages already included with the offline Arduino AVR platform.",
+            lambda: parent.install_arduino_driver_packages(parent=self),
+        )
+        self._driver_card(
+            body,
+            1,
+            "CH340 / CH341",
+            "Most compatible Uno and Nano clone boards",
+            "Runs the official Microsoft-signed WCH 4.0 installer bundled and checksum-verified by SafeRide.",
+            lambda: parent.install_ch341_driver_package(parent=self),
+        )
+
+        note = tk.Label(
+            body,
+            text="Windows will request administrator approval only for driver installation. SafeRide itself remains portable and does not require administrator rights.",
+            bg="#eff6ff",
+            fg=COLORS["cyan"],
+            padx=12,
+            pady=10,
+            justify="left",
+            anchor="w",
+            wraplength=650,
+        )
+        set_font(note, 8, "bold", "Consolas")
+        note.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+
+        footer = tk.Frame(self, bg=COLORS["panel"], padx=14, pady=10)
+        footer.pack(fill="x")
+        button(footer, "EXPORT LOGS", lambda: parent.export_logs(parent=self)).pack(side="left")
+        button(footer, "CLOSE", self.destroy, primary=True).pack(side="right")
+
+    def _driver_card(
+        self,
+        parent: tk.Widget,
+        column: int,
+        title: str,
+        devices: str,
+        description: str,
+        command: Callable,
+    ) -> None:
+        card = tk.Frame(
+            parent,
+            bg=COLORS["panel"],
+            highlightbackground=COLORS["line"],
+            highlightthickness=1,
+            padx=16,
+            pady=15,
+        )
+        card.grid(row=0, column=column, sticky="nsew", padx=(0, 7) if column == 0 else (7, 0))
+        label = tk.Label(card, text=title, bg=COLORS["panel"], fg=COLORS["text"], anchor="w")
+        set_font(label, 13, "bold")
+        label.pack(fill="x")
+        device_label = tk.Label(card, text=devices, bg=COLORS["panel"], fg=COLORS["cyan"], anchor="w", wraplength=280, justify="left")
+        set_font(device_label, 8, "bold", "Consolas")
+        device_label.pack(fill="x", pady=(7, 10))
+        detail = tk.Label(card, text=description, bg=COLORS["panel"], fg=COLORS["muted"], anchor="nw", wraplength=280, justify="left")
+        set_font(detail, 9)
+        detail.pack(fill="both", expand=True)
+        button(card, "INSTALL DRIVER", command, primary=True).pack(fill="x", pady=(14, 0))
+
+
 class SafeRideApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -510,8 +636,18 @@ class SafeRideApp(tk.Tk):
         self.port_map: dict[str, object] = {}
         self.device_config = load_config()
         self.updater = GitHubUpdater()
+        try:
+            self.session_log = SessionLog(APP_VERSION)
+        except OSError:
+            self.session_log = SessionLog(APP_VERSION, root=Path(tempfile.gettempdir()) / "SafeRide" / "logs")
+        self.session_log.append(
+            "system",
+            f"SafeRide started; portable={self.updater.portable_mode}; executable={Path(sys.executable).resolve()}",
+        )
+        self.session_log.append("config", json.dumps(self.device_config.to_dict(), separators=(",", ":")))
         self._update_busy = False
         self._configure_styles()
+        self.bind_all("<Control-Shift-s>", lambda _event: self.export_logs())
         self.show_setup()
         self.after(60, self._drain_events)
         self.after(1500, self._auto_check_for_updates)
@@ -542,6 +678,8 @@ class SafeRideApp(tk.Tk):
         mode = tk.Label(system_bar, text=f"v{APP_VERSION}  /  HARDWARE SETUP + FLASH", bg=COLORS["navy"], fg="#60a5fa")
         set_font(mode, 8, "bold", "Consolas")
         mode.pack(side="right")
+        compact_button(system_bar, "EXPORT LOGS", self.export_logs, dark=True).pack(side="right", padx=(0, 8))
+        compact_button(system_bar, "USB DRIVERS", self.open_driver_assistant, dark=True).pack(side="right", padx=(0, 6))
 
         hero = tk.Frame(root, bg=COLORS["panel"], highlightbackground=COLORS["line"], highlightthickness=1, padx=14, pady=10)
         hero.pack(fill="x", pady=(0, 8))
@@ -686,8 +824,91 @@ class SafeRideApp(tk.Tk):
     def open_configuration_wizard(self) -> None:
         ConfigurationWizard(self, self.device_config, self._configuration_saved)
 
+    def open_driver_assistant(self) -> None:
+        assets = driver_assets()
+        self.session_log.append(
+            "driver",
+            f"Driver assistant opened; arduino_ftdi={assets.arduino_driver_root is not None}; ch341={assets.ch341_installer is not None}",
+        )
+        DriverAssistant(self)
+
+    def install_arduino_driver_packages(self, parent: tk.Misc | None = None) -> None:
+        owner = parent or self
+        approved = messagebox.askyesno(
+            "Install Arduino USB drivers",
+            "SafeRide will ask Windows for administrator approval and install the bundled Arduino/FTDI driver packages.\n\n"
+            "Continue only if a genuine Arduino or FTDI-based board is missing from the COM port list.",
+            parent=owner,
+        )
+        if not approved:
+            self.session_log.append("driver", "Arduino/FTDI driver installation cancelled")
+            return
+        try:
+            path = install_arduino_drivers()
+        except DriverSupportError as exc:
+            self.session_log.append("error", f"Arduino/FTDI driver installer: {exc}")
+            messagebox.showerror("Driver installation could not start", str(exc), parent=owner)
+            return
+        self.session_log.append("driver", f"Arduino/FTDI driver installation launched from {path}")
+        messagebox.showinfo(
+            "Windows driver utility started",
+            "Complete the elevated Windows driver window, reconnect both boards, then press RESCAN.",
+            parent=owner,
+        )
+
+    def install_ch341_driver_package(self, parent: tk.Misc | None = None) -> None:
+        owner = parent or self
+        approved = messagebox.askyesno(
+            "Install CH340 / CH341 driver",
+            "SafeRide verified the bundled official WCH driver before launch. Windows will now request administrator approval.\n\n"
+            "Continue only if a CH340/CH341 clone board is missing from the COM port list.",
+            parent=owner,
+        )
+        if not approved:
+            self.session_log.append("driver", "CH340/CH341 driver installation cancelled")
+            return
+        try:
+            path = install_ch341_driver()
+        except DriverSupportError as exc:
+            self.session_log.append("error", f"CH340/CH341 driver installer: {exc}")
+            messagebox.showerror("Driver installation could not start", str(exc), parent=owner)
+            return
+        self.session_log.append("driver", f"Verified CH340/CH341 installer launched from {path}")
+        messagebox.showinfo(
+            "WCH driver installer started",
+            "Complete the WCH installer, reconnect both boards, then press RESCAN.",
+            parent=owner,
+        )
+
+    def export_logs(self, parent: tk.Misc | None = None) -> None:
+        owner = parent or self
+        suggested = f"SafeRide-Logs-{time.strftime('%Y%m%d-%H%M%S')}.txt"
+        selected = filedialog.asksaveasfilename(
+            parent=owner,
+            title="Export SafeRide logs",
+            initialfile=suggested,
+            defaultextension=".txt",
+            filetypes=(("Text log", "*.txt"), ("All files", "*.*")),
+        )
+        if not selected:
+            return
+        destination = Path(selected)
+        self.session_log.append("export", f"Export requested: {destination}")
+        try:
+            exported = self.session_log.export(destination)
+        except OSError as exc:
+            self.session_log.append("error", f"Log export failed: {exc}")
+            messagebox.showerror("Could not export logs", str(exc), parent=owner)
+            return
+        messagebox.showinfo(
+            "Logs exported",
+            f"All setup, firmware, telemetry, safety-state and error logs were saved to:\n\n{exported}",
+            parent=owner,
+        )
+
     def _configuration_saved(self, config: SafeRideConfig) -> None:
         self.device_config = config
+        self.session_log.append("config", json.dumps(config.to_dict(), separators=(",", ":")))
         self._refresh_config_labels()
         h, v = config.helmet, config.vehicle
         self._setup_log(
@@ -710,6 +931,7 @@ class SafeRideApp(tk.Tk):
 
     def _start_update_check(self, interactive: bool) -> None:
         self._update_busy = True
+        self.session_log.append("update", f"Checking public releases; interactive={interactive}")
         self._set_update_button("CHECKING...", enabled=False)
         threading.Thread(target=self._update_check_worker, args=(interactive,), daemon=True).start()
 
@@ -723,11 +945,12 @@ class SafeRideApp(tk.Tk):
     def _handle_update_checked(self, release: ReleaseInfo, interactive: bool) -> None:
         self._update_busy = False
         self._set_update_button("CHECK UPDATE")
+        self.session_log.append("update", f"Latest public release: {release.version}; package={release.package_kind}")
         if not is_newer_version(release.version):
             if interactive:
                 messagebox.showinfo(
                     "SafeRide is current",
-                    f"SafeRide {APP_VERSION} is the latest private release.",
+                    f"SafeRide {APP_VERSION} is the latest public release.",
                     parent=self,
                 )
             return
@@ -748,18 +971,24 @@ class SafeRideApp(tk.Tk):
 
     def _update_download_worker(self, release: ReleaseInfo) -> None:
         try:
-            installer = self.updater.download_update(release)
-            self.events.put(("update_ready", (release, installer)))
+            package = self.updater.download_update(release)
+            self.events.put(("update_ready", (release, package)))
         except UpdateError as exc:
             self.events.put(("update_error", (str(exc), True)))
 
-    def _handle_update_ready(self, release: ReleaseInfo, installer: Path) -> None:
+    def _handle_update_ready(self, release: ReleaseInfo, package: Path) -> None:
         self._update_busy = False
         self._set_update_button("CHECK UPDATE")
+        self.session_log.append("update", f"Verified update downloaded: version={release.version}; file={package}")
+        action = (
+            "Replace this portable EXE now? SafeRide will close and reopen after the update."
+            if self.updater.portable_mode
+            else "Install it now? SafeRide will close and reopen after the upgrade."
+        )
         install = messagebox.askyesno(
             "Update verified",
             f"SafeRide {release.version} passed SHA-256 verification.\n\n"
-            "Install it now? SafeRide will close and reopen after the upgrade.",
+            f"{action}",
             parent=self,
         )
         if not install:
@@ -768,14 +997,18 @@ class SafeRideApp(tk.Tk):
             self.bridge.close()
             self.bridge = None
         try:
-            subprocess.Popen(
-                [str(installer), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
-                cwd=str(installer.parent),
-            )
-        except OSError as exc:
-            messagebox.showerror("Could not start installer", str(exc), parent=self)
+            if self.updater.portable_mode:
+                plan = self.updater.prepare_portable_update(package)
+                self.updater.launch_portable_update(plan)
+            else:
+                subprocess.Popen(
+                    [str(package), "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"],
+                    cwd=str(package.parent),
+                )
+        except (OSError, UpdateError) as exc:
+            messagebox.showerror("Could not start update", str(exc), parent=self)
             return
-        self.after(400, self.destroy)
+        self.after(400, self.close)
 
     def _hardware_interface(self, parent: tk.Widget, title: str, accent: str, hardware: str, detail: str) -> ttk.Combobox:
         card = tk.Frame(parent, bg=COLORS["panel"], highlightbackground=COLORS["line"], highlightthickness=1, padx=10, pady=9)
@@ -866,6 +1099,7 @@ class SafeRideApp(tk.Tk):
         return combo
 
     def _setup_log(self, text: str) -> None:
+        self.session_log.append("setup", text)
         if not hasattr(self, "setup_log"):
             return
         self.setup_log.configure(state="normal")
@@ -895,7 +1129,7 @@ class SafeRideApp(tk.Tk):
         else:
             self._setup_log(
                 "No serial ports found. Connect both Arduinos with USB data cables and scan again. "
-                "If a connected clone board is missing, install its signed CH340/CH341 USB driver."
+                "If a connected board is missing, open USB DRIVERS above and install the matching signed package."
             )
             self._set_pipeline(0, "waiting", 0)
         skipped = len(detected) - len(ports)
@@ -993,6 +1227,7 @@ class SafeRideApp(tk.Tk):
         self.sync_label = tk.Label(system_bar, text="●  TELEMETRY SYNCHRONIZING", bg=COLORS["navy"], fg="#60a5fa")
         set_font(self.sync_label, 8, "bold", "Consolas")
         self.sync_label.pack(side="right")
+        compact_button(system_bar, "EXPORT LOGS", self.export_logs, dark=True).pack(side="right", padx=(0, 8))
 
         top = tk.Frame(root, bg=COLORS["panel"], highlightbackground=COLORS["line"], highlightthickness=1, padx=12, pady=8)
         top.pack(fill="x", pady=(0, 8))
@@ -1129,10 +1364,13 @@ class SafeRideApp(tk.Tk):
                     self._setup_log(str(payload))
                 elif kind == "pipeline":
                     index, state, progress = payload
+                    self.session_log.append("pipeline", f"step={index + 1}; state={state}; progress={progress}")
                     self._set_pipeline(index, state, progress)
                 elif kind == "launch_hardware":
+                    self.session_log.append("system", f"Opening serial bridge: {payload[0]} -> {payload[1]}")
                     self.launch_hardware(*payload)
                 elif kind == "upload_error":
+                    self.session_log.append("error", f"Firmware upload failed: {payload}")
                     self._setup_log(f"ERROR: {payload}")
                     if hasattr(self, "flash_button") and self.flash_button.winfo_exists():
                         self.flash_button.configure(state="normal", text="FLASH + LAUNCH")
@@ -1143,23 +1381,34 @@ class SafeRideApp(tk.Tk):
                     self._handle_update_ready(*payload)
                 elif kind == "update_error":
                     text, interactive = payload
+                    self.session_log.append("error", f"Update check failed: {text}")
                     self._update_busy = False
                     self._set_update_button("CHECK UPDATE")
                     if interactive:
                         messagebox.showerror("SafeRide update failed", text, parent=self)
-                elif kind == "raw" and hasattr(self, "raw_log") and self.raw_log.winfo_exists():
+                elif kind == "raw":
                     source, line = payload
-                    self._append_raw(source, line)
+                    if hasattr(self, "raw_log") and self.raw_log.winfo_exists():
+                        self._append_raw(source, line)
+                    else:
+                        self.session_log.append(f"raw-{source.lower()}", line)
                 elif kind in ("helmet", "vehicle") and hasattr(self, "chart") and self.chart.winfo_exists():
                     self._apply_telemetry(payload, authoritative=(kind == "vehicle"))
                 elif kind == "error":
+                    self.session_log.append("error", payload)
                     if hasattr(self, "raw_log") and self.raw_log.winfo_exists():
-                        self._append_raw("ERROR", str(payload))
+                        self._append_raw("ERROR", str(payload), record=False)
+                elif kind == "system":
+                    self.session_log.append("system", payload)
+                    if hasattr(self, "raw_log") and self.raw_log.winfo_exists():
+                        self._append_raw("SYSTEM", str(payload), record=False)
         except queue.Empty:
             pass
         self.after(60, self._drain_events)
 
-    def _append_raw(self, source: str, line: str) -> None:
+    def _append_raw(self, source: str, line: str, record: bool = True) -> None:
+        if record:
+            self.session_log.append(f"raw-{source.lower()}", line)
         self.raw_count += 1
         self.raw_log.configure(state="normal")
         timestamp = time.strftime("%H:%M:%S")
@@ -1209,14 +1458,67 @@ class SafeRideApp(tk.Tk):
             stamp = time.strftime("%H:%M:%S")
             action = "RELAY ON" if engine else "RELAY OFF"
             self.timeline.configure(text=f"{stamp}  •  {action}  •  {reason.upper()}", fg=COLORS["green"] if engine else COLORS["red"])
+            self.session_log.append(
+                "state",
+                f"helmet={int(data.helmet)}; alcohol={int(data.alcohol)}; drowsy={int(data.drowsy)}; "
+                f"engine={int(bool(engine))}; link={data.link}; mq3={data.mq3}; reason={reason}",
+            )
             self.last_state_key = state_key
 
     def close(self) -> None:
         if self.bridge:
             self.bridge.close()
+        self.session_log.append("system", "SafeRide closed")
+        self.session_log.close()
         self.destroy()
 
 
+def _portable_smoke_test(output_path: Path) -> int:
+    updater = GitHubUpdater()
+    cli = arduino_cli_path()
+    from uploader import resource_path
+    from driver_support import verify_ch341_installer
+
+    assets = driver_assets()
+    ch341_valid = False
+    if assets.ch341_installer:
+        try:
+            verify_ch341_installer(assets.ch341_installer)
+            ch341_valid = True
+        except DriverSupportError:
+            pass
+
+    result = {
+        "version": APP_VERSION,
+        "portable_mode": updater.portable_mode,
+        "executable": str(Path(sys.executable).resolve()),
+        "arduino_cli": bool(cli and cli.is_file()),
+        "arduino_usb_drivers": bool(assets.arduino_driver_root),
+        "ch341_driver": ch341_valid,
+        "helmet_firmware": resource_path("firmware", "helmet", "helmet.ino").is_file(),
+        "vehicle_firmware": resource_path("firmware", "vehicle", "vehicle.ino").is_file(),
+    }
+    result["ok"] = all(
+        result[key]
+        for key in (
+            "portable_mode",
+            "arduino_cli",
+            "arduino_usb_drivers",
+            "ch341_driver",
+            "helmet_firmware",
+            "vehicle_firmware",
+        )
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return 0 if result["ok"] else 1
+
+
 if __name__ == "__main__":
+    if "--portable-smoke-test" in sys.argv:
+        index = sys.argv.index("--portable-smoke-test")
+        if index + 1 >= len(sys.argv):
+            raise SystemExit(2)
+        raise SystemExit(_portable_smoke_test(Path(sys.argv[index + 1])))
     SafeRideApp().mainloop()
 
