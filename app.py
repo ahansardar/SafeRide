@@ -296,12 +296,10 @@ class ConfigurationWizard(tk.Toplevel):
             "alcohol_pin": h.alcohol_pin, "helmet_ir_pin": str(h.helmet_ir_pin),
             "eye_ir_pin": str(h.eye_ir_pin), "helmet_led_pin": str(h.led_pin),
             "helmet_buzzer_pin": str(h.buzzer_pin), "alcohol_threshold": str(h.alcohol_threshold),
-            "helmet_bluetooth_rx_pin": str(h.bluetooth_rx_pin), "helmet_bluetooth_tx_pin": str(h.bluetooth_tx_pin),
             "drowsy_limit_ms": str(h.drowsy_limit_ms), "helmet_send_interval_ms": str(h.send_interval_ms),
             "helmet_active_low": h.helmet_active_low, "eye_active_low": h.eye_active_low,
             "relay_pin": str(v.relay_pin), "vehicle_led_pin": str(v.led_pin),
             "vehicle_buzzer_pin": str(v.buzzer_pin), "link_timeout_ms": str(v.link_timeout_ms),
-            "vehicle_bluetooth_rx_pin": str(v.bluetooth_rx_pin), "vehicle_bluetooth_tx_pin": str(v.bluetooth_tx_pin),
             "vehicle_send_interval_ms": str(v.send_interval_ms), "relay_active_high": v.relay_active_high,
         }
         return {key: (tk.BooleanVar(value=value) if isinstance(value, bool) else tk.StringVar(value=value)) for key, value in values.items()}
@@ -396,7 +394,7 @@ class ConfigurationWizard(tk.Toplevel):
             combo = ttk.Combobox(card, values=labels, textvariable=display_var, state="readonly", style="SafeRide.TCombobox")
             combo.pack(fill="x")
             combo.bind("<<ComboboxSelected>>", lambda _event, k=key, v=display_var: self.vars[k].set(self.board_keys[v.get()]))
-        note = tk.Label(page, text="Supported profiles: Uno, Nano new/old bootloader and Mega 2560. D0/D1 remain reserved for USB uploading. HC-05 defaults to software serial on D10/D11.", bg="#eff6ff", fg=COLORS["cyan"], padx=10, pady=10, justify="left", anchor="w", wraplength=620)
+        note = tk.Label(page, text="Supported profiles: Uno, Nano new/old bootloader and Mega 2560. Bluetooth uses the fixed hardware UART: HC-05 TXD → D0/RX and RXD → D1/TX. Disconnect the HC-05 while uploading.", bg="#eff6ff", fg=COLORS["cyan"], padx=10, pady=10, justify="left", anchor="w", wraplength=620)
         set_font(note, 8, "bold", "Consolas")
         note.pack(fill="x", pady=(12, 0))
         return page
@@ -413,8 +411,6 @@ class ConfigurationWizard(tk.Toplevel):
             (left, "Eye IR pin", "eye_ir_pin", "Digital pin, not D0/D1"),
             (left, "Status LED pin", "helmet_led_pin", "Unique digital pin"),
             (left, "Buzzer pin", "helmet_buzzer_pin", "Unique digital pin"),
-            (left, "HC-05 receive pin", "helmet_bluetooth_rx_pin", "Arduino RX, connect HC-05 TXD"),
-            (left, "HC-05 transmit pin", "helmet_bluetooth_tx_pin", "Arduino TX, connect to HC-05 RXD through divider"),
             (right, "Alcohol threshold", "alcohol_threshold", "0 to 1023 ADC"),
             (right, "Drowsiness time", "drowsy_limit_ms", "250 to 30000 ms"),
             (right, "Packet interval", "helmet_send_interval_ms", "100 to 2000 ms"),
@@ -430,8 +426,6 @@ class ConfigurationWizard(tk.Toplevel):
             ("Engine relay pin", "relay_pin", "Digital pin, not D0/D1"),
             ("Status LED pin", "vehicle_led_pin", "Unique digital pin"),
             ("Buzzer pin", "vehicle_buzzer_pin", "Unique digital pin"),
-            ("HC-05 receive pin", "vehicle_bluetooth_rx_pin", "Arduino RX, connect HC-05 TXD"),
-            ("HC-05 transmit pin", "vehicle_bluetooth_tx_pin", "Arduino TX, connect to HC-05 RXD through divider"),
             ("Link timeout", "link_timeout_ms", "500 to 30000 ms"),
             ("Status packet interval", "vehicle_send_interval_ms", "100 to 2000 ms"),
         ):
@@ -458,8 +452,6 @@ class ConfigurationWizard(tk.Toplevel):
                 board=str(self.vars["helmet_board"].get()), alcohol_pin=str(self.vars["alcohol_pin"].get()).strip().upper(),
                 helmet_ir_pin=number("helmet_ir_pin", "Helmet IR pin"), eye_ir_pin=number("eye_ir_pin", "Eye IR pin"),
                 led_pin=number("helmet_led_pin", "Helmet LED pin"), buzzer_pin=number("helmet_buzzer_pin", "Helmet buzzer pin"),
-                bluetooth_rx_pin=number("helmet_bluetooth_rx_pin", "Helmet HC-05 receive pin"),
-                bluetooth_tx_pin=number("helmet_bluetooth_tx_pin", "Helmet HC-05 transmit pin"),
                 alcohol_threshold=number("alcohol_threshold", "Alcohol threshold"), drowsy_limit_ms=number("drowsy_limit_ms", "Drowsiness time"),
                 send_interval_ms=number("helmet_send_interval_ms", "Helmet packet interval"),
                 helmet_active_low=bool(self.vars["helmet_active_low"].get()), eye_active_low=bool(self.vars["eye_active_low"].get()),
@@ -467,8 +459,6 @@ class ConfigurationWizard(tk.Toplevel):
             vehicle=VehicleConfig(
                 board=str(self.vars["vehicle_board"].get()), relay_pin=number("relay_pin", "Relay pin"),
                 led_pin=number("vehicle_led_pin", "Vehicle LED pin"), buzzer_pin=number("vehicle_buzzer_pin", "Vehicle buzzer pin"),
-                bluetooth_rx_pin=number("vehicle_bluetooth_rx_pin", "Vehicle HC-05 receive pin"),
-                bluetooth_tx_pin=number("vehicle_bluetooth_tx_pin", "Vehicle HC-05 transmit pin"),
                 link_timeout_ms=number("link_timeout_ms", "Link timeout"), send_interval_ms=number("vehicle_send_interval_ms", "Vehicle packet interval"),
                 relay_active_high=bool(self.vars["relay_active_high"].get()),
             ),
@@ -513,12 +503,12 @@ class ConfigurationWizard(tk.Toplevel):
             text = (
                 f"HELMET BOARD   {BOARD_PROFILES[h.board].label}\n"
                 f"HELMET PINS    MQ-3={h.alcohol_pin}  PRESENCE=D{h.helmet_ir_pin}  EYE=D{h.eye_ir_pin}  LED=D{h.led_pin}  BUZZER=D{h.buzzer_pin}\n"
-                f"HELMET HC-05   TXD→D{h.bluetooth_rx_pin}  RXD←D{h.bluetooth_tx_pin} THROUGH 5V→3.3V DIVIDER\n"
+                f"HELMET HC-05   TXD→D{h.bluetooth_rx_pin}/RX  RXD←D{h.bluetooth_tx_pin}/TX  DIRECT, NO DIVIDER\n"
                 f"THRESHOLDS     ALCOHOL={h.alcohol_threshold} ADC  DROWSY={h.drowsy_limit_ms} ms\n"
                 f"SENSOR LOGIC   HELMET={'ACTIVE-LOW' if h.helmet_active_low else 'ACTIVE-HIGH'}  EYE={'ACTIVE-LOW' if h.eye_active_low else 'ACTIVE-HIGH'}\n\n"
                 f"VEHICLE BOARD  {BOARD_PROFILES[v.board].label}\n"
                 f"VEHICLE PINS   RELAY=D{v.relay_pin}  LED=D{v.led_pin}  BUZZER=D{v.buzzer_pin}\n"
-                f"VEHICLE HC-05  TXD→D{v.bluetooth_rx_pin}  RXD←D{v.bluetooth_tx_pin} THROUGH 5V→3.3V DIVIDER\n"
+                f"VEHICLE HC-05  TXD→D{v.bluetooth_rx_pin}/RX  RXD←D{v.bluetooth_tx_pin}/TX  DIRECT, NO DIVIDER\n"
                 f"FAIL-SAFE      LINK TIMEOUT={v.link_timeout_ms} ms  RELAY={'ACTIVE-HIGH' if v.relay_active_high else 'ACTIVE-LOW'}\n\n"
                 "VALIDATION      PASSED\n"
                 "NEXT FLASH      SafeRide will generate both sketches from this configuration."
@@ -658,7 +648,7 @@ class BluetoothSetupWizard(tk.Toplevel):
         title.pack(anchor="w")
         subtitle = tk.Label(
             header,
-            text="Bluetooth firmware uploaded  /  complete the physical changeover once",
+            text="Bluetooth firmware uploaded  /  USB is now disconnected  /  complete the physical changeover",
             bg=COLORS["navy"], fg="#94a3b8",
         )
         set_font(subtitle, 8, "bold", "Consolas")
@@ -677,7 +667,7 @@ class BluetoothSetupWizard(tk.Toplevel):
         heading.pack(fill="x")
         warning = tk.Label(
             wiring,
-            text="Power both Arduinos off before changing wires. After wiring, power them from the project battery or regulated external supply.",
+            text="Keep both boards powered off. USB and both HC-05 modules had to stay disconnected during upload. Now connect the modules, then power the boards from the project battery or a regulated external supply.",
             bg="#fff7ed", fg="#9a3412", padx=10, pady=9, justify="left", anchor="w", wraplength=450,
         )
         set_font(warning, 8, "bold")
@@ -685,17 +675,17 @@ class BluetoothSetupWizard(tk.Toplevel):
         h, v = self.parent.device_config.helmet, self.parent.device_config.vehicle
         self._wiring_card(wiring, "HELMET HC-05", h.bluetooth_rx_pin, h.bluetooth_tx_pin)
         self._wiring_card(wiring, "VEHICLE HC-05", v.bluetooth_rx_pin, v.bluetooth_tx_pin)
-        divider = tk.Label(
+        direct = tk.Label(
             wiring,
             text=(
-                "HC-05 RXD is 3.3 V logic. On each Arduino TX line use: "
-                f"helmet D{h.bluetooth_tx_pin} / vehicle D{v.bluetooth_tx_pin} → 1 kΩ → RXD junction, then junction → 2 kΩ → GND. "
-                "HC-05 TXD can connect directly to the configured Arduino RX pin."
+                "DIRECT UART WIRING — NO DIVIDER\n"
+                f"On both boards: HC-05 TXD → D{h.bluetooth_rx_pin}/RX and HC-05 RXD → D{h.bluetooth_tx_pin}/TX. "
+                "D0/D1 are fixed and are not editable because they are the hardware serial pins."
             ),
             bg="#eff6ff", fg=COLORS["cyan"], padx=10, pady=9, justify="left", anchor="w", wraplength=450,
         )
-        set_font(divider, 8, "bold", "Consolas")
-        divider.pack(fill="x", pady=(10, 0))
+        set_font(direct, 8, "bold", "Consolas")
+        direct.pack(fill="x", pady=(10, 0))
 
         connect = tk.Frame(body, bg=COLORS["panel"], highlightbackground=COLORS["line"], highlightthickness=1, padx=16, pady=14)
         connect.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
@@ -745,7 +735,7 @@ class BluetoothSetupWizard(tk.Toplevel):
             "HC-05 VCC  →  Arduino 5V",
             "HC-05 GND  →  Arduino GND",
             f"HC-05 TXD  →  Arduino D{rx_pin}  (RX)",
-            f"HC-05 RXD  ←  Arduino D{tx_pin}  (TX, through divider)",
+            f"HC-05 RXD  →  Arduino D{tx_pin}  (TX, direct)",
             "HC-05 EN/KEY  →  leave disconnected",
         )
         text = tk.Label(card, text="\n".join(lines), bg=COLORS["panel2"], fg=COLORS["muted"], justify="left", anchor="w")
@@ -1330,10 +1320,10 @@ class SafeRideApp(tk.Tk):
             return
         h, v = self.device_config.helmet, self.device_config.vehicle
         self.helmet_config_label.configure(
-            text=f"MQ-3 {h.alcohol_pin}  •  IR D{h.helmet_ir_pin}/D{h.eye_ir_pin}  •  HC-05 RX/TX D{h.bluetooth_rx_pin}/D{h.bluetooth_tx_pin}  •  LIMIT {h.alcohol_threshold}"
+            text=f"MQ-3 {h.alcohol_pin}  •  IR D{h.helmet_ir_pin}/D{h.eye_ir_pin}  •  HC-05 TXD→D0 / RXD→D1  •  LIMIT {h.alcohol_threshold}"
         )
         self.vehicle_config_label.configure(
-            text=f"RELAY D{v.relay_pin}  •  LED D{v.led_pin}  •  HC-05 RX/TX D{v.bluetooth_rx_pin}/D{v.bluetooth_tx_pin}  •  TIMEOUT {v.link_timeout_ms} ms"
+            text=f"RELAY D{v.relay_pin}  •  LED D{v.led_pin}  •  HC-05 TXD→D0 / RXD→D1  •  TIMEOUT {v.link_timeout_ms} ms"
         )
 
     def _select_transport_mode(self, mode: str) -> None:
@@ -1373,7 +1363,7 @@ class SafeRideApp(tk.Tk):
         bluetooth = self.transport_mode == BLUETOOTH_MODE
         self.hero_copy.configure(
             text=(
-                "Flash both boards over USB first. SafeRide then guides HC-05 wiring, one-time Windows pairing and wireless launch."
+                "Disconnect both HC-05 modules, flash over USB, then unplug USB and wire HC-05 TXD→D0/RX and RXD→D1/TX directly."
                 if bluetooth else
                 "Assign two physical USB channels. SafeRide compiles, flashes, verifies, then opens live telemetry."
             )
@@ -1383,8 +1373,8 @@ class SafeRideApp(tk.Tk):
         pipeline = (
             (
                 ("Detecting USB boards", "USB is used only to install Bluetooth firmware"),
-                ("Uploading helmet Bluetooth firmware", "Compile HC-05 serial support and flash helmet"),
-                ("Uploading vehicle Bluetooth firmware", "Compile HC-05 serial support and flash interlock"),
+                ("Uploading helmet Bluetooth firmware", "HC-05 must be disconnected from D0/D1"),
+                ("Uploading vehicle Bluetooth firmware", "HC-05 must be disconnected from D0/D1"),
                 ("Pairing and connecting HC-05", "Wire modules, pair once, then auto-identify"),
             )
             if bluetooth else
@@ -1529,6 +1519,13 @@ class SafeRideApp(tk.Tk):
             self.open_configuration_wizard()
             return
         mode = self.transport_mode
+        if mode == BLUETOOTH_MODE and not messagebox.askokcancel(
+            "Disconnect both HC-05 modules",
+            "Before uploading, disconnect both HC-05 modules completely from both Arduinos.\n\n"
+            "D0 and D1 are shared with the USB uploader. Connect the HC-05 modules only after both uploads finish and SafeRide tells you to disconnect USB.",
+            parent=self,
+        ):
+            return
         self._setup_log(f"Starting automatic {mode} firmware upload...")
         self.flash_button.configure(state="disabled", text="FLASHING...")
         self.usb_mode_button.configure(state="disabled")
@@ -1751,7 +1748,7 @@ class SafeRideApp(tk.Tk):
                     self.launch_hardware(*payload)
                 elif kind == "bluetooth_firmware_ready":
                     self.session_log.append("bluetooth", "Bluetooth firmware uploaded to both controllers")
-                    self._setup_log("Bluetooth firmware ready. Disconnect USB, wire and pair both HC-05 modules.")
+                    self._setup_log("Bluetooth firmware ready. Disconnect both USB cables, wire HC-05 TXD→D0 and RXD→D1 directly, then pair.")
                     if hasattr(self, "flash_button") and self.flash_button.winfo_exists():
                         self.flash_button.configure(state="disabled", text="WAITING FOR HC-05...")
                     BluetoothSetupWizard(self)
@@ -1883,8 +1880,8 @@ def _portable_smoke_test(output_path: Path) -> int:
         bluetooth_firmware = all(
             marker in source
             for source in (helmet_source, vehicle_source)
-            for marker in ("SoftwareSerial", "BLUETOOTH_MODE", "BLUETOOTH_RX_PIN", "BLUETOOTH_TX_PIN")
-        )
+            for marker in ("BLUETOOTH_MODE", "TRANSPORT:", "Serial.begin(9600)")
+        ) and all("SoftwareSerial" not in source for source in (helmet_source, vehicle_source))
     ch341_valid = False
     if assets.ch341_installer:
         try:

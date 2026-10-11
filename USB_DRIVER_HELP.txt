@@ -20,9 +20,13 @@ Do not download USB drivers from random driver-download websites.
 
 Bluetooth / HC-05 mode:
 
-1. SafeRide first uploads Bluetooth firmware through both USB cables.
-2. After the upload completes, follow the on-screen wiring diagram and power
-   both boards from the project battery or a regulated supply.
+1. Completely disconnect both HC-05 modules from both Arduinos. D0/D1 must be
+   free while SafeRide uploads Bluetooth firmware through both USB cables.
+2. After both uploads complete, disconnect both USB cables and power off the
+   boards. On each board connect HC-05 TXD directly to D0/RX and HC-05 RXD
+   directly to D1/TX. Connect VCC to 5V and GND to GND; leave EN/KEY open.
+   No divider is used. Then power the boards from the project battery or a
+   regulated supply.
 3. Use OPEN WINDOWS BLUETOOTH in SafeRide to pair both HC-05 modules. The
    normal PIN is 1234; some modules use 0000.
 4. Return to SafeRide, press RESCAN PORTS, then AUTO IDENTIFY.

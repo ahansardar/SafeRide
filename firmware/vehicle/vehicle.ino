@@ -3,20 +3,13 @@
   Receives real helmet packets from the desktop bridge over USB or HC-05 serial.
 */
 
-#include <SoftwareSerial.h>
-
 const uint8_t RELAY_PIN = 4;
 const uint8_t LED_PIN = 5;
 const uint8_t BUZZER_PIN = 6;
-const uint8_t BLUETOOTH_RX_PIN = 10;
-const uint8_t BLUETOOTH_TX_PIN = 11;
 const unsigned long LINK_TIMEOUT_MS = 2000;
 const unsigned long SEND_INTERVAL_MS = 250;
 const bool RELAY_ACTIVE_HIGH = true;
 const bool BLUETOOTH_MODE = false;
-
-SoftwareSerial bluetoothSerial(BLUETOOTH_RX_PIN, BLUETOOTH_TX_PIN);
-Stream *telemetryPort = &Serial;
 
 String inputLine;
 int helmetStatus = 0;
@@ -56,17 +49,13 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, RELAY_ACTIVE_HIGH ? LOW : HIGH);
   Serial.begin(9600);
-  if (BLUETOOTH_MODE) {
-    bluetoothSerial.begin(9600);
-    telemetryPort = &bluetoothSerial;
-  }
-  telemetryPort->print("DEVICE:VEHICLE,FIRMWARE:3.0,TRANSPORT:");
-  telemetryPort->println(BLUETOOTH_MODE ? "BLUETOOTH" : "USB_BRIDGE");
+  Serial.print("DEVICE:VEHICLE,FIRMWARE:3.1,TRANSPORT:");
+  Serial.println(BLUETOOTH_MODE ? "BLUETOOTH" : "USB_BRIDGE");
 }
 
 void loop() {
-  while (telemetryPort->available()) {
-    const char incoming = telemetryPort->read();
+  while (Serial.available()) {
+    const char incoming = Serial.read();
     if (incoming == '\n') {
       acceptPacket(inputLine);
       inputLine = "";
@@ -86,12 +75,12 @@ void loop() {
 
   if (millis() - lastSendAt >= SEND_INTERVAL_MS) {
     lastSendAt = millis();
-    telemetryPort->print("H:"); telemetryPort->print(helmetStatus);
-    telemetryPort->print(",A:"); telemetryPort->print(alcoholStatus);
-    telemetryPort->print(",D:"); telemetryPort->print(drowsyStatus);
-    telemetryPort->print(",M:"); telemetryPort->print(alcoholValue);
-    telemetryPort->print(",ENGINE:"); telemetryPort->print(rideAllowed ? 1 : 0);
-    telemetryPort->print(",LINK:"); telemetryPort->println(linkAlive ? 1 : 0);
+    Serial.print("H:"); Serial.print(helmetStatus);
+    Serial.print(",A:"); Serial.print(alcoholStatus);
+    Serial.print(",D:"); Serial.print(drowsyStatus);
+    Serial.print(",M:"); Serial.print(alcoholValue);
+    Serial.print(",ENGINE:"); Serial.print(rideAllowed ? 1 : 0);
+    Serial.print(",LINK:"); Serial.println(linkAlive ? 1 : 0);
   }
 }
 

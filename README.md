@@ -26,15 +26,15 @@ To publish a future version, update `APP_VERSION` in `version.py`, commit and pu
 1. Run `SafeRide.exe` and choose **USB direct** or **Bluetooth / HC-05**.
 2. Connect both Arduinos by USB and select the helmet and vehicle COM ports.
 3. USB mode: click **Flash + launch**. SafeRide uploads both sketches and opens the dashboard.
-4. Bluetooth mode: click **Flash Bluetooth firmware**. SafeRide first uploads both wireless sketches through USB.
-5. Follow the HC-05 wizard to disconnect USB, wire both modules, pair them once in Windows, and let SafeRide identify the two Bluetooth COM ports from their live packets.
+4. Bluetooth mode: completely disconnect both HC-05 modules, then click **Flash Bluetooth firmware**. D0/D1 must be free while SafeRide uploads both wireless sketches through USB.
+5. After both uploads finish, disconnect both USB cables. Wire each HC-05 directly to D0/D1, power the boards externally, pair the modules once in Windows, and let SafeRide identify the two Bluetooth COM ports from their live packets.
 6. Click **Connect HC-05 + open dashboard**.
 
 Use **Configure** before flashing to change the board profile, pin assignments, MQ-3 threshold, drowsiness time, packet intervals, sensor polarity, link timeout, or relay polarity. SafeRide validates the settings, saves them under `%APPDATA%\SafeRide\config.json`, and generates matching firmware for that flash.
 
 Use **Export logs** from the setup screen, configuration wizard, driver assistant, or live dashboard—or press `Ctrl+Shift+S`. The exported text file contains the complete session timeline: port discovery, configuration, firmware compilation/upload output, raw helmet and vehicle packets, safety-state transitions, update activity and errors. SafeRide also writes the active session log continuously under `%LOCALAPPDATA%\SafeRide\logs`.
 
-Supported board profiles are Arduino Uno, Nano with either bootloader, and Mega 2560. Auto Detect tries compatible profiles in a safe order. D0 and D1 stay reserved for USB serial on every profile.
+Supported board profiles are Arduino Uno, Nano with either bootloader, and Mega 2560. Auto Detect tries compatible profiles in a safe order. D0/RX and D1/TX are fixed hardware-serial pins for both USB and HC-05 communication, so no sensor or output can use them.
 
 USB mode needs no HC-05. Bluetooth mode pairs both HC-05 modules with the Windows PC. SafeRide forwards the real helmet packet from the helmet Bluetooth COM port to the vehicle Bluetooth COM port, while the vehicle still makes the final relay decision. Pairing is required once per PC because Windows owns the Bluetooth PIN and device trust record. SafeRide remembers the selected Bluetooth COM ports and can automatically identify each controller from its live packet format.
 
@@ -60,17 +60,17 @@ USB mode needs no HC-05. Bluetooth mode pairs both HC-05 modules with the Window
 
 ### HC-05 wiring for Bluetooth mode
 
-The default Bluetooth software-serial pins are the same on both boards. They can be changed in **Configure** and SafeRide checks them for collisions with every sensor and output pin.
+Both boards use their fixed hardware UART pins. These two communication pins are intentionally not editable in **Configure**. Keep each HC-05 completely disconnected while USB firmware upload is in progress.
 
 | HC-05 pin | Helmet Arduino | Vehicle Arduino |
 |---|---|---|
 | VCC | 5V | 5V |
 | GND | GND | GND |
-| TXD | D10, Arduino RX | D10, Arduino RX |
-| RXD | D11, Arduino TX through divider | D11, Arduino TX through divider |
+| TXD | D0 / RX, direct | D0 / RX, direct |
+| RXD | D1 / TX, direct | D1 / TX, direct |
 | EN / KEY | Not connected | Not connected |
 
-HC-05 RXD uses 3.3 V logic. Put a 1 kΩ resistor between Arduino D11 and the RXD junction, and a 2 kΩ resistor between that junction and GND. HC-05 TXD can connect directly to Arduino D10. Turn power off before changing wiring. After removing USB, power each Arduino from the project battery or a regulated external supply.
+No divider is used in this SafeRide wiring profile. Turn both boards off before changing wiring. Upload with the HC-05 modules disconnected; after upload, remove both USB cables, connect the modules as shown, then power each Arduino from the project battery or a regulated external supply. This direct connection assumes the HC-05 carrier boards used by the project accept the Arduino UART signal level.
 
 ## Development
 

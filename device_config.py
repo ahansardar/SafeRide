@@ -33,8 +33,8 @@ class HelmetConfig:
     eye_ir_pin: int = 3
     led_pin: int = 7
     buzzer_pin: int = 8
-    bluetooth_rx_pin: int = 10
-    bluetooth_tx_pin: int = 11
+    bluetooth_rx_pin: int = 0
+    bluetooth_tx_pin: int = 1
     alcohol_threshold: int = 400
     drowsy_limit_ms: int = 3000
     send_interval_ms: int = 250
@@ -48,8 +48,8 @@ class VehicleConfig:
     relay_pin: int = 4
     led_pin: int = 5
     buzzer_pin: int = 6
-    bluetooth_rx_pin: int = 10
-    bluetooth_tx_pin: int = 11
+    bluetooth_rx_pin: int = 0
+    bluetooth_tx_pin: int = 1
     link_timeout_ms: int = 2000
     send_interval_ms: int = 250
     relay_active_high: bool = True
@@ -71,8 +71,6 @@ class SafeRideConfig:
                 "eye IR": self.helmet.eye_ir_pin,
                 "helmet LED": self.helmet.led_pin,
                 "helmet buzzer": self.helmet.buzzer_pin,
-                "helmet Bluetooth RX": self.helmet.bluetooth_rx_pin,
-                "helmet Bluetooth TX": self.helmet.bluetooth_tx_pin,
             },
             self.helmet.board,
         )
@@ -81,11 +79,11 @@ class SafeRideConfig:
                 "relay": self.vehicle.relay_pin,
                 "vehicle LED": self.vehicle.led_pin,
                 "vehicle buzzer": self.vehicle.buzzer_pin,
-                "vehicle Bluetooth RX": self.vehicle.bluetooth_rx_pin,
-                "vehicle Bluetooth TX": self.vehicle.bluetooth_tx_pin,
             },
             self.vehicle.board,
         )
+        _validate_hardware_serial(self.helmet.bluetooth_rx_pin, self.helmet.bluetooth_tx_pin, "helmet")
+        _validate_hardware_serial(self.vehicle.bluetooth_rx_pin, self.vehicle.bluetooth_tx_pin, "vehicle")
         _range(self.helmet.alcohol_threshold, 0, 1023, "Alcohol threshold")
         _range(self.helmet.drowsy_limit_ms, 250, 30000, "Drowsiness time")
         _range(self.helmet.send_interval_ms, 100, 2000, "Helmet send interval")
@@ -94,10 +92,19 @@ class SafeRideConfig:
 
     @classmethod
     def from_dict(cls, raw: dict) -> "SafeRideConfig":
+        helmet_values = dict(raw.get("helmet", {}))
+        vehicle_values = dict(raw.get("vehicle", {}))
+        # SafeRide 3.4.0 stored editable SoftwareSerial pins here. Bluetooth now
+        # uses the fixed hardware UART, so migrate old configurations without
+        # discarding the user's sensor pins or thresholds.
+        helmet_values["bluetooth_rx_pin"] = 0
+        helmet_values["bluetooth_tx_pin"] = 1
+        vehicle_values["bluetooth_rx_pin"] = 0
+        vehicle_values["bluetooth_tx_pin"] = 1
         config = cls(
             version=int(raw.get("version", 1)),
-            helmet=HelmetConfig(**raw.get("helmet", {})),
-            vehicle=VehicleConfig(**raw.get("vehicle", {})),
+            helmet=HelmetConfig(**helmet_values),
+            vehicle=VehicleConfig(**vehicle_values),
         )
         config.validate()
         return config
@@ -130,6 +137,11 @@ def _validate_digital_group(values: dict[str, int], board_key: str) -> None:
         if pin in used:
             raise ValueError(f"{name} and {used[pin]} cannot both use D{pin}")
         used[pin] = name
+
+
+def _validate_hardware_serial(rx_pin: int, tx_pin: int, owner: str) -> None:
+    if (rx_pin, tx_pin) != (0, 1):
+        raise ValueError(f"{owner.capitalize()} HC-05 must use hardware serial pins RX D0 and TX D1")
 
 
 def _range(value: int, minimum: int, maximum: int, name: str) -> None:
