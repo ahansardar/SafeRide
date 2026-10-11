@@ -5,6 +5,7 @@ import re
 import sys
 
 from device_config import SafeRideConfig
+from connection_settings import BLUETOOTH_MODE, TRANSPORT_MODES
 
 
 def resource_path(*parts: str) -> Path:
@@ -20,8 +21,10 @@ def _replace_constant(source: str, c_type: str, name: str, value: str) -> str:
     return updated
 
 
-def render_firmware(config: SafeRideConfig, output_root: Path) -> tuple[Path, Path]:
+def render_firmware(config: SafeRideConfig, output_root: Path, transport_mode: str = "usb") -> tuple[Path, Path]:
     config.validate()
+    if transport_mode not in TRANSPORT_MODES:
+        raise ValueError(f"Unsupported firmware transport: {transport_mode}")
     helmet_source = resource_path("firmware", "helmet", "helmet.ino").read_text(encoding="utf-8")
     vehicle_source = resource_path("firmware", "vehicle", "vehicle.ino").read_text(encoding="utf-8")
 
@@ -31,11 +34,14 @@ def render_firmware(config: SafeRideConfig, output_root: Path) -> tuple[Path, Pa
         ("uint8_t", "EYE_IR_PIN"): str(config.helmet.eye_ir_pin),
         ("uint8_t", "LED_PIN"): str(config.helmet.led_pin),
         ("uint8_t", "BUZZER_PIN"): str(config.helmet.buzzer_pin),
+        ("uint8_t", "BLUETOOTH_RX_PIN"): str(config.helmet.bluetooth_rx_pin),
+        ("uint8_t", "BLUETOOTH_TX_PIN"): str(config.helmet.bluetooth_tx_pin),
         ("int", "ALCOHOL_THRESHOLD"): str(config.helmet.alcohol_threshold),
         ("unsigned long", "DROWSY_LIMIT_MS"): str(config.helmet.drowsy_limit_ms),
         ("unsigned long", "SEND_INTERVAL_MS"): str(config.helmet.send_interval_ms),
         ("bool", "HELMET_ACTIVE_LOW"): str(config.helmet.helmet_active_low).lower(),
         ("bool", "EYE_ACTIVE_LOW"): str(config.helmet.eye_active_low).lower(),
+        ("bool", "BLUETOOTH_MODE"): str(transport_mode == BLUETOOTH_MODE).lower(),
     }
     for (c_type, name), value in helmet_values.items():
         helmet_source = _replace_constant(helmet_source, c_type, name, value)
@@ -44,9 +50,12 @@ def render_firmware(config: SafeRideConfig, output_root: Path) -> tuple[Path, Pa
         ("uint8_t", "RELAY_PIN"): str(config.vehicle.relay_pin),
         ("uint8_t", "LED_PIN"): str(config.vehicle.led_pin),
         ("uint8_t", "BUZZER_PIN"): str(config.vehicle.buzzer_pin),
+        ("uint8_t", "BLUETOOTH_RX_PIN"): str(config.vehicle.bluetooth_rx_pin),
+        ("uint8_t", "BLUETOOTH_TX_PIN"): str(config.vehicle.bluetooth_tx_pin),
         ("unsigned long", "LINK_TIMEOUT_MS"): str(config.vehicle.link_timeout_ms),
         ("unsigned long", "SEND_INTERVAL_MS"): str(config.vehicle.send_interval_ms),
         ("bool", "RELAY_ACTIVE_HIGH"): str(config.vehicle.relay_active_high).lower(),
+        ("bool", "BLUETOOTH_MODE"): str(transport_mode == BLUETOOTH_MODE).lower(),
     }
     for (c_type, name), value in vehicle_values.items():
         vehicle_source = _replace_constant(vehicle_source, c_type, name, value)

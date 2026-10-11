@@ -33,6 +33,8 @@ class HelmetConfig:
     eye_ir_pin: int = 3
     led_pin: int = 7
     buzzer_pin: int = 8
+    bluetooth_rx_pin: int = 10
+    bluetooth_tx_pin: int = 11
     alcohol_threshold: int = 400
     drowsy_limit_ms: int = 3000
     send_interval_ms: int = 250
@@ -46,6 +48,8 @@ class VehicleConfig:
     relay_pin: int = 4
     led_pin: int = 5
     buzzer_pin: int = 6
+    bluetooth_rx_pin: int = 10
+    bluetooth_tx_pin: int = 11
     link_timeout_ms: int = 2000
     send_interval_ms: int = 250
     relay_active_high: bool = True
@@ -67,6 +71,8 @@ class SafeRideConfig:
                 "eye IR": self.helmet.eye_ir_pin,
                 "helmet LED": self.helmet.led_pin,
                 "helmet buzzer": self.helmet.buzzer_pin,
+                "helmet Bluetooth RX": self.helmet.bluetooth_rx_pin,
+                "helmet Bluetooth TX": self.helmet.bluetooth_tx_pin,
             },
             self.helmet.board,
         )
@@ -75,6 +81,8 @@ class SafeRideConfig:
                 "relay": self.vehicle.relay_pin,
                 "vehicle LED": self.vehicle.led_pin,
                 "vehicle buzzer": self.vehicle.buzzer_pin,
+                "vehicle Bluetooth RX": self.vehicle.bluetooth_rx_pin,
+                "vehicle Bluetooth TX": self.vehicle.bluetooth_tx_pin,
             },
             self.vehicle.board,
         )
@@ -118,7 +126,7 @@ def _validate_digital_group(values: dict[str, int], board_key: str) -> None:
     used: dict[int, str] = {}
     for name, pin in values.items():
         if pin < 2 or pin > maximum:
-            raise ValueError(f"{name} pin D{pin} must be between D2 and D{maximum}; D0 and D1 are reserved for USB serial")
+            raise ValueError(f"{name} pin D{pin} must be between D2 and D{maximum}; D0 and D1 are reserved for USB upload serial")
         if pin in used:
             raise ValueError(f"{name} and {used[pin]} cannot both use D{pin}")
         used[pin] = name

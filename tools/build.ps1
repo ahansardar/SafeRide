@@ -45,9 +45,8 @@ Push-Location $projectRoot
 try {
     python -m unittest discover -s tests -v
 
-    Write-Host "[5/6] Compiling both bundled firmware sketches"
-    & $cliPath compile --fqbn arduino:avr:uno (Join-Path $projectRoot "firmware\helmet")
-    & $cliPath compile --fqbn arduino:avr:uno (Join-Path $projectRoot "firmware\vehicle")
+    Write-Host "[5/6] Compiling USB and HC-05 firmware variants"
+    & (Join-Path $toolRoot "compile-firmware-variants.ps1") -ArduinoCli $cliPath
 
     if ($Target -in @("All", "Installed")) {
         Write-Host "[6/6] Building the installed Windows application"

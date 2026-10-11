@@ -23,7 +23,7 @@ try {
         throw "Portable SafeRide did not write its smoke-test result."
     }
     $result = Get-Content -Raw -LiteralPath $resultFile | ConvertFrom-Json
-    foreach ($field in @("ok", "portable_mode", "arduino_cli", "arduino_usb_drivers", "ch341_driver", "helmet_firmware", "vehicle_firmware", "brand_icon")) {
+    foreach ($field in @("ok", "portable_mode", "arduino_cli", "arduino_usb_drivers", "ch341_driver", "helmet_firmware", "vehicle_firmware", "bluetooth_firmware", "brand_icon")) {
         if (-not $result.$field) {
             throw "Portable SafeRide check failed: $field"
         }

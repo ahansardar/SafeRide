@@ -1,6 +1,6 @@
 # SafeRide
 
-A native Windows exhibition dashboard for a two-Arduino smart helmet prototype. The app selects the two COM ports, uploads the matching firmware, relays helmet telemetry to the vehicle over USB, and shows the safety state in real time.
+A native Windows exhibition dashboard for a two-Arduino smart helmet prototype. SafeRide supports a direct dual-USB link and a real dual-HC-05 Bluetooth link. It uploads the matching firmware, relays helmet telemetry to the vehicle, and shows the safety state in real time.
 
 ## Zero-install portable EXE
 
@@ -23,11 +23,12 @@ To publish a future version, update `APP_VERSION` in `version.py`, commit and pu
 
 ## Exhibition flow
 
-1. Connect both Arduinos by USB.
-2. Run `SafeRide.exe`.
-3. Select the helmet and vehicle COM ports.
-4. Click **Flash firmware & launch**.
-5. The app uploads both sketches and opens the live dashboard.
+1. Run `SafeRide.exe` and choose **USB direct** or **Bluetooth / HC-05**.
+2. Connect both Arduinos by USB and select the helmet and vehicle COM ports.
+3. USB mode: click **Flash + launch**. SafeRide uploads both sketches and opens the dashboard.
+4. Bluetooth mode: click **Flash Bluetooth firmware**. SafeRide first uploads both wireless sketches through USB.
+5. Follow the HC-05 wizard to disconnect USB, wire both modules, pair them once in Windows, and let SafeRide identify the two Bluetooth COM ports from their live packets.
+6. Click **Connect HC-05 + open dashboard**.
 
 Use **Configure** before flashing to change the board profile, pin assignments, MQ-3 threshold, drowsiness time, packet intervals, sensor polarity, link timeout, or relay polarity. SafeRide validates the settings, saves them under `%APPDATA%\SafeRide\config.json`, and generates matching firmware for that flash.
 
@@ -35,7 +36,7 @@ Use **Export logs** from the setup screen, configuration wizard, driver assistan
 
 Supported board profiles are Arduino Uno, Nano with either bootloader, and Mega 2560. Auto Detect tries compatible profiles in a safe order. D0 and D1 stay reserved for USB serial on every profile.
 
-No HC-05 is required. The PC forwards the real helmet packet to the vehicle Arduino over the two USB connections. The dashboard calls this the Helmet to Vehicle Link; the vehicle still makes the final relay decision.
+USB mode needs no HC-05. Bluetooth mode pairs both HC-05 modules with the Windows PC. SafeRide forwards the real helmet packet from the helmet Bluetooth COM port to the vehicle Bluetooth COM port, while the vehicle still makes the final relay decision. Pairing is required once per PC because Windows owns the Bluetooth PIN and device trust record. SafeRide remembers the selected Bluetooth COM ports and can automatically identify each controller from its live packet format.
 
 ## Wiring
 
@@ -56,6 +57,20 @@ No HC-05 is required. The PC forwards the real helmet packet to the vehicle Ardu
 | Relay IN | D4 |
 | Status LED | D5 |
 | Buzzer | D6 |
+
+### HC-05 wiring for Bluetooth mode
+
+The default Bluetooth software-serial pins are the same on both boards. They can be changed in **Configure** and SafeRide checks them for collisions with every sensor and output pin.
+
+| HC-05 pin | Helmet Arduino | Vehicle Arduino |
+|---|---|---|
+| VCC | 5V | 5V |
+| GND | GND | GND |
+| TXD | D10, Arduino RX | D10, Arduino RX |
+| RXD | D11, Arduino TX through divider | D11, Arduino TX through divider |
+| EN / KEY | Not connected | Not connected |
+
+HC-05 RXD uses 3.3 V logic. Put a 1 kΩ resistor between Arduino D11 and the RXD junction, and a 2 kΩ resistor between that junction and GND. HC-05 TXD can connect directly to Arduino D10. Turn power off before changing wiring. After removing USB, power each Arduino from the project battery or a regulated external supply.
 
 ## Development
 

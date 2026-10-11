@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 def main() -> int:
     required = [
         ROOT / "app.py",
+        ROOT / "connection_settings.py",
         ROOT / "core.py",
         ROOT / "uploader.py",
         ROOT / "device_config.py",
@@ -30,6 +31,8 @@ def main() -> int:
         ROOT / "assets" / "saferide-mark-96.png",
         ROOT / "assets" / "saferide-mark-256.png",
         ROOT / "tools" / "build-portable.ps1",
+        ROOT / "tools" / "compile-firmware-variants.ps1",
+        ROOT / "tools" / "render-firmware-variant.py",
         ROOT / "tools" / "verify-portable.ps1",
         ROOT / "drivers" / "CH341SER.EXE",
         ROOT / "firmware" / "helmet" / "helmet.ino",
@@ -42,7 +45,7 @@ def main() -> int:
         return 1
 
     for source in (
-        ROOT / "app.py", ROOT / "core.py", ROOT / "uploader.py", ROOT / "device_config.py",
+        ROOT / "app.py", ROOT / "connection_settings.py", ROOT / "core.py", ROOT / "uploader.py", ROOT / "device_config.py",
         ROOT / "firmware_builder.py", ROOT / "driver_support.py", ROOT / "session_log.py",
         ROOT / "updater.py", ROOT / "version.py",
     ):

@@ -1,5 +1,5 @@
-SafeRide USB connection help
-============================
+SafeRide USB and Bluetooth connection help
+==========================================
 
 SafeRide itself is fully offline and includes its Python runtime, Arduino
 compiler, upload tools, and AVR board definitions. No Arduino IDE is needed.
@@ -18,5 +18,16 @@ If a connected Arduino does not appear in SafeRide:
 
 Do not download USB drivers from random driver-download websites.
 
-SafeRide deliberately ignores Bluetooth virtual COM ports. The exhibition
-link is a real wired serial data feed even when an HC-05 module is displayed.
+Bluetooth / HC-05 mode:
+
+1. SafeRide first uploads Bluetooth firmware through both USB cables.
+2. After the upload completes, follow the on-screen wiring diagram and power
+   both boards from the project battery or a regulated supply.
+3. Use OPEN WINDOWS BLUETOOTH in SafeRide to pair both HC-05 modules. The
+   normal PIN is 1234; some modules use 0000.
+4. Return to SafeRide, press RESCAN PORTS, then AUTO IDENTIFY.
+5. SafeRide recognizes the helmet and vehicle from their live packet formats,
+   remembers the two Bluetooth COM ports, and opens the dashboard.
+
+Windows owns Bluetooth pairing and its trusted-device record. SafeRide opens
+the official Windows pairing screen rather than storing or bypassing the PIN.

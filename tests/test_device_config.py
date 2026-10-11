@@ -11,12 +11,18 @@ class DeviceConfigTests(unittest.TestCase):
     def test_rejects_serial_pins(self):
         config = SafeRideConfig()
         config.helmet.helmet_ir_pin = 1
-        with self.assertRaisesRegex(ValueError, "reserved for USB serial"):
+        with self.assertRaisesRegex(ValueError, "reserved for USB"):
             config.validate()
 
     def test_rejects_duplicate_pins(self):
         config = SafeRideConfig()
         config.vehicle.led_pin = config.vehicle.relay_pin
+        with self.assertRaisesRegex(ValueError, "cannot both use"):
+            config.validate()
+
+    def test_rejects_bluetooth_pin_collision(self):
+        config = SafeRideConfig()
+        config.helmet.bluetooth_rx_pin = config.helmet.led_pin
         with self.assertRaisesRegex(ValueError, "cannot both use"):
             config.validate()
 
@@ -56,6 +62,21 @@ class DeviceConfigTests(unittest.TestCase):
             self.assertIn("const int ALCOHOL_THRESHOLD = 515;", helmet_text)
             self.assertIn("const uint8_t RELAY_PIN = 9;", vehicle_text)
             self.assertIn("const bool RELAY_ACTIVE_HIGH = false;", vehicle_text)
+
+    def test_renders_bluetooth_firmware_and_configured_pins(self):
+        config = SafeRideConfig()
+        config.helmet.bluetooth_rx_pin = 12
+        config.helmet.bluetooth_tx_pin = 13
+        config.vehicle.bluetooth_rx_pin = 12
+        config.vehicle.bluetooth_tx_pin = 13
+        with tempfile.TemporaryDirectory() as folder:
+            helmet, vehicle = render_firmware(config, Path(folder), "bluetooth")
+            helmet_text = (helmet / "helmet.ino").read_text(encoding="utf-8")
+            vehicle_text = (vehicle / "vehicle.ino").read_text(encoding="utf-8")
+            self.assertIn("const uint8_t BLUETOOTH_RX_PIN = 12;", helmet_text)
+            self.assertIn("const uint8_t BLUETOOTH_TX_PIN = 13;", vehicle_text)
+            self.assertIn("const bool BLUETOOTH_MODE = true;", helmet_text)
+            self.assertIn("const bool BLUETOOTH_MODE = true;", vehicle_text)
 
 
 if __name__ == "__main__":

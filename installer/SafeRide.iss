@@ -48,7 +48,7 @@ Source: "{#ProjectRoot}\USB_DRIVER_HELP.txt"; DestDir: "{app}"; Flags: ignorever
 [Icons]
 Name: "{group}\SafeRide"; Filename: "{app}\SafeRide.exe"; WorkingDir: "{app}"
 Name: "{group}\SafeRide documentation"; Filename: "{app}\README.md"
-Name: "{group}\USB connection help"; Filename: "{app}\USB_DRIVER_HELP.txt"
+Name: "{group}\SafeRide connection help"; Filename: "{app}\USB_DRIVER_HELP.txt"
 Name: "{autodesktop}\SafeRide"; Filename: "{app}\SafeRide.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
