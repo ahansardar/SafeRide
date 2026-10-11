@@ -2,6 +2,8 @@
 
 A native Windows exhibition dashboard for a two-Arduino smart helmet prototype. SafeRide supports a direct dual-USB link and a real dual-HC-05 Bluetooth link. It uploads the matching firmware, relays helmet telemetry to the vehicle, and shows the safety state in real time.
 
+The repository also contains a tablet-first native Android app under `android/`. It uses two real Bluetooth Classic SPP links, mirrors the Windows dashboard's live safety view and raw logs, and contains no demo-data mode. See `android/README.md` for its pairing and build flow.
+
 ## Zero-install portable EXE
 
 Download `SafeRide-Portable-x64.exe` from the public GitHub release, copy it to any writable folder or USB drive, and run it. It needs no installation, administrator rights, Python, Arduino IDE or internet connection for normal operation. The first launch can take longer because the single EXE unpacks its bundled Arduino tools to a temporary folder.

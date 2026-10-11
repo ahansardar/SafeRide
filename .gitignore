@@ -5,6 +5,14 @@ __pycache__/
 build/
 dist/
 release/
+android/.gradle/
+android/local.properties
+android/app/build/
+.gradle-android/
+.android-user/
+.signing/
+android/signing.properties
+android/*.jks
 *.spec
 tools/arduino-cli.exe
 tools/arduino-data/

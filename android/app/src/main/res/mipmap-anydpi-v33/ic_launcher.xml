@@ -1,0 +1,5 @@
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/saferide_navy" />
+    <foreground android:drawable="@drawable/ic_saferide" />
+    <monochrome android:drawable="@drawable/ic_saferide" />
+</adaptive-icon>
